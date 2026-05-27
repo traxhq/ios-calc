@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iOS Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+            background: #000000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .calculator {
+            width: 100%;
+            max-width: 375px;
+            height: 100vh;
+            max-height: 812px;
+            background: #000000;
+            display: flex;
+            flex-direction: column;
+            padding: 0 10px;
+            position: relative;
+        }
+
+        @media (min-width: 376px) {
+            .calculator {
+                height: auto;
+                min-height: 700px;
+                border-radius: 40px;
+                box-shadow: 
+                    0 20px 60px rgba(0, 0, 0, 0.5),
+                    0 0 100px rgba(255, 159, 10, 0.05);
+                margin: 20px;
+            }
+        }
+
+        /* Display Section */
+        .display {
+            flex: 0 0 auto;
+            padding: 15px 15px 10px;
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            min-height: 140px;
+            overflow: hidden;
+        }
+
+        .previous-operand {
+            color: #8e8e93;
+            font-size: 24px;
+            font-weight: 400;
+            min-height: 30px;
+            word-break: break-all;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .previous-operand.fade-out {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        .current-operand {
+            color: #ffffff;
+            font-size: 80px;
+            font-weight: 300;
+            line-height: 1.1;
+            word-break: break-all;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
+            transform-origin: right center;
+        }
+
+        .current-operand.small { font-size: 55px; }
+        .current-operand.smaller { font-size: 40px; }
+        .current-operand.smallest { font-size: 32px; }
+
+        .current-operand::-webkit-scrollbar { display: none; }
+
+        @keyframes numberPop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes resultReveal {
+            0% { 
+                opacity: 0; 
+                transform: scale(0.9) translateY(15px); 
+            }
+            60% { 
+                transform: scale(1.04) translateY(-3px); 
+            }
+            100% { 
+                opacity: 1; 
+                transform: scale(1) translateY(0); 
+            }
+        }
+
+        @keyframes clearShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-8px); }
+            40% { transform: translateX(8px); }
+            60% { transform: translateX(-4px); }
+            80% { transform: translateX(4px); }
+        }
+
+        .number-enter {
+            animation: numberPop 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .result-reveal {
+            animation: resultReveal 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .clear-shake {
+            animation: clearShake 0.35s ease-out;
+        }
+
+        /* Buttons Grid */
+        .buttons {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            padding: 10px 5px 25px;
+        }
+
+        button {
+            border: none;
+            outline: none;
+            cursor: pointer;
+            font-size: 38px;
+            font-weight: 400;
+            border-radius: 50%;
+            height: 75px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+            -webkit-user-select: none;
+            position: relative;
+            overflow: hidden;
+            transition: 
+                transform 0.12s cubic-bezier(0.4, 0, 0.2, 1),
+                background-color 0.12s ease,
+                box-shadow 0.12s ease,
+                filter 0.12s ease;
+            will-change: transform;
+        }
+
+        /* ============================================
+           ORANGE BUTTONS (AC, +/−, %, +, −, ×, ÷, =)
+           ALL FUNCTION & OPERATOR BUTTONS ARE ORANGE!
+           ============================================ */
+        .function,
+        .operator {
+            background: #ff9f0a !important;
+            color: #ffffff !important;
+            box-shadow: 
+                0 4px 16px rgba(255, 159, 10, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .function:hover,
+        .operator:hover {
+            background: #ffb340 !important;
+            filter: brightness(1.12);
+            transform: scale(1.03) translateY(-2px);
+            box-shadow: 
+                0 6px 22px rgba(255, 159, 10, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.3);
+        }
+
+        .function:active,
+        .operator:active {
+            background: #ffc76a !important;
+            color: #ffffff !important;
+            transform: scale(0.92) !important;
+            box-shadow: 
+                0 2px 8px rgba(255, 159, 10, 0.3),
+                inset 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+            transition-duration: 0.08s;
+        }
+
+        .function.pressed,
+        .operator.pressed {
+            background: #ffc76a !important;
+            transform: scale(0.92) !important;
+        }
+
+        .operator.active {
+            background: #ffffff !important;
+            color: #ff9f0a !important;
+            box-shadow: 
+                0 4px 24px rgba(255, 159, 10, 0.6),
+                inset 0 0 20px rgba(255, 159, 10, 0.08) !important;
+            animation: operatorPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes operatorPulse {
+            0%, 100% { 
+                box-shadow: 
+                    0 4px 24px rgba(255, 159, 10, 0.6), 
+                    inset 0 0 20px rgba(255, 159, 10, 0.08); 
+            }
+            50% { 
+                box-shadow: 
+                    0 6px 32px rgba(255, 159, 10, 0.8), 
+                    inset 0 0 28px rgba(255, 159, 10, 0.12); 
+            }
+        }
+
+        /* ============================================
+           NUMBER BUTTONS (0-9, .) - DARK GRAY
+           ============================================ */
+        .number {
+            background: #333333 !important;
+            color: #ffffff !important;
+            box-shadow: 
+                0 4px 14px rgba(51, 51, 51, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.05);
+        }
+
+        .number:hover {
+            background: #474747 !important;
+            filter: brightness(1.15);
+            transform: scale(1.03) translateY(-2px);
+            box-shadow: 
+                0 6px 20px rgba(51, 51, 51, 0.55),
+                inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .number:active {
+            background: #5c5c5c !important;
+            color: #ffffff !important;
+            transform: scale(0.92) !important;
+            box-shadow: 
+                0 2px 6px rgba(51, 51, 51, 0.3),
+                inset 0 2px 4px rgba(0, 0, 0, 0.15) !important;
+            transition-duration: 0.08s;
+        }
+
+        .number.pressed {
+            background: #5c5c5c !important;
+            transform: scale(0.92) !important;
+        }
+
+        /* Zero button spans 2 columns */
+        .zero {
+            grid-column: span 2;
+            border-radius: 38px;
+            justify-content: flex-start;
+            padding-left: 28px;
+        }
+
+        /* Enhanced Ripple Effect */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(
+                circle, 
+                rgba(255,255,255,0.7) 0%, 
+                rgba(255,255,255,0.3) 40%, 
+                transparent 70%
+            );
+            transform: scale(0);
+            pointer-events: none;
+            animation: rippleExpand 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes rippleExpand {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+            70% {
+                opacity: 0.4;
+            }
+            100% {
+                transform: scale(4.5);
+                opacity: 0;
+            }
+        }
+
+        /* Button inner glow on hover */
+        button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border-radius: inherit;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+            background: linear-gradient(
+                135deg, 
+                rgba(255,255,255,0.25) 0%, 
+                transparent 50%
+            );
+        }
+
+        button:hover::before {
+            opacity: 1;
+        }
+
+        /* Focus state for accessibility */
+        button:focus-visible {
+            outline: 3px solid #ff9f0a;
+            outline-offset: 3px;
+        }
+
+        /* Success particles container */
+        .particles-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 100;
+        }
+
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            animation: particleFly 0.85s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            pointer-events: none;
+        }
+
+        @keyframes particleFly {
+            0% {
+                opacity: 1;
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translate(var(--tx), var(--ty)) scale(0);
+            }
+        }
+
+        /* Entrance animation for buttons */
+        @keyframes buttonEntrance {
+            0% {
+                opacity: 0;
+                transform: scale(0.4) translateY(30px) rotate(-5deg);
+            }
+            70% {
+                transform: scale(1.05) translateY(-5px) rotate(1deg);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0) rotate(0deg);
+            }
+        }
+
+        .button-entering {
+            animation: buttonEntrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="calculator">
+        <div class="display">
+            <div class="previous-operand" id="previousOperand"></div>
+            <div class="current-operand" id="currentOperand">0</div>
+        </div>
+        <div class="buttons" id="buttonsContainer">
+            <button class="function" data-action="clear">AC</button>
+            <button class="function" data-action="negate">+/−</button>
+            <button class="function" data-action="percent">%</button>
+            <button class="operator" data-action="operator" data-value="÷">÷</button>
+            
+            <button class="number" data-action="number" data-value="7">7</button>
+            <button class="number" data-action="number" data-value="8">8</button>
+            <button class="number" data-action="number" data-value="9">9</button>
+            <button class="operator" data-action="operator" data-value="×">×</button>
+            
+            <button class="number" data-action="number" data-value="4">4</button>
+            <button class="number" data-action="number" data-value="5">5</button>
+            <button class="number" data-action="number" data-value="6">6</button>
+            <button class="operator" data-action="operator" data-value="−">−</button>
+            
+            <button class="number" data-action="number" data-value="1">1</button>
+            <button class="number" data-action="number" data-value="2">2</button>
+            <button class="number" data-action="number" data-value="3">3</button>
+            <button class="operator" data-action="operator" data-value="+">+</button>
+            
+            <button class="number zero" data-action="number" data-value="0">0</button>
+            <button class="number" data-action="decimal">.</button>
+            <button class="operator" data-action="equals">=</button>
+        </div>
+        <div class="particles-container" id="particlesContainer"></div>
+    </div>
+
+    <script>
+        class Calculator {
+            constructor() {
+                this.currentOperandElement = document.getElementById('currentOperand');
+                this.previousOperandElement = document.getElementById('previousOperand');
+                this.particlesContainer = document.getElementById('particlesContainer');
+                
+                this.current = '0';
+                this.previous = '';
+                this.operation = undefined;
+                this.shouldResetScreen = false;
+                
+                this.setupEventListeners();
+                this.addEntranceAnimation();
+            }
+
+            setupEventListeners() {
+                // Button interactions
+                document.querySelectorAll('button').forEach(button => {
+                    // Mouse events
+                    button.addEventListener('mousedown', (e) => this.handlePressStart(e, button));
+                    button.addEventListener('mouseup', () => this.handlePressEnd(button));
+                    button.addEventListener('mouseleave', () => this.handlePressEnd(button));
+                    
+                    // Touch events
+                    button.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.handleTouchStart(e, button);
+                    }, { passive: false });
+                    button.addEventListener('touchend', () => this.handlePressEnd(button));
+                    button.addEventListener('touchcancel', () => this.handlePressEnd(button));
+                    
+                    // Click handler
+                    button.addEventListener('click', (e) => this.handleButtonClick(e, button));
+                });
+
+                // Keyboard input
+                document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+            }
+
+            addEntranceAnimation() {
+                const buttons = document.querySelectorAll('button');
+                buttons.forEach((btn, index) => {
+                    btn.style.opacity = '0';
+                    btn.style.visibility = 'hidden';
+                    
+                    setTimeout(() => {
+                        btn.style.visibility = 'visible';
+                        btn.classList.add('button-entering');
+                        
+                        setTimeout(() => {
+                            btn.classList.remove('button-entering');
+                            btn.style.opacity = '1';
+                            btn.style.transform = '';
+                        }, 500);
+                    }, 60 + index * 35);
+                });
+
+                // Display entrance
+                this.currentOperandElement.style.opacity = '0';
+                this.currentOperandElement.style.transform = 'translateY(-30px)';
+                setTimeout(() => {
+                    this.currentOperandElement.style.transition = 'all 0.7s cubic-bezier(0.4, 0, 0.2, 1)';
+                    this.currentOperandElement.style.opacity = '1';
+                    this.currentOperandElement.style.transform = 'translateY(0)';
+                }, 150);
+            }
+
+            handlePressStart(event, button) {
+                this.createRipple(event, button);
+                button.classList.add('pressed');
+            }
+
+            handleTouchStart(event, button) {
+                const touch = event.touches[0];
+                this.createRippleFromPoint(touch.clientX, touch.clientY, button);
+                button.classList.add('pressed');
+            }
+
+            handlePressEnd(button) {
+                setTimeout(() => {
+                    button.classList.remove('pressed');
+                }, 80);
+            }
+
+            handleButtonClick(event, button) {
+                this.handleButton(button);
+            }
+
+            createRipple(event, button) {
+                const rect = button.getBoundingClientRect();
+                const x = event.clientX || event.pageX || rect.left + rect.width / 2;
+                const y = event.clientY || event.pageY || rect.top + rect.height / 2;
+                this.createRippleFromPoint(x, y, button);
+            }
+
+            createRippleFromPoint(x, y, button) {
+                const rect = button.getBoundingClientRect();
+                const size = Math.max(rect.width, rect.height) * 2.2;
+                const px = x - rect.left - size / 2;
+                const py = y - rect.top - size / 2;
+
+                const ripple = document.createElement('span');
+                ripple.className = 'ripple';
+                ripple.style.width = ripple.style.height = `${size}px`;
+                ripple.style.left = `${px}px`;
+                ripple.style.top = `${py}px`;
+
+                button.appendChild(ripple);
+
+                setTimeout(() => {
+                    if (ripple.parentNode) {
+                        ripple.remove();
+                    }
+                }, 600);
+            }
+
+            createParticles(x, y, count = 14) {
+                const colors = ['#ff9f0a', '#ffb340', '#ffc76a', '#ffe0a0', '#fff'];
+                
+                for (let i = 0; i < count; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    
+                    const angle = (i / count) * Math.PI * 2 + (Math.random() * 0.4 - 0.2);
+                    const distance = 50 + Math.random() * 70;
+                    const tx = Math.cos(angle) * distance;
+                    const ty = Math.sin(angle) * distance - 20;
+                    
+                    particle.style.left = `${x}px`;
+                    particle.style.top = `${y}px`;
+                    particle.style.setProperty('--tx', `${tx}px`);
+                    particle.style.setProperty('--ty', `${ty}px`);
+                    particle.style.background = colors[Math.floor(Math.random() * colors.length)];
+                    particle.style.width = `${5 + Math.random() * 8}px`;
+                    particle.style.height = particle.style.width;
+                    particle.style.boxShadow = `0 0 ${Math.random() * 6}px currentColor`;
+                    
+                    this.particlesContainer.appendChild(particle);
+                    
+                    setTimeout(() => {
+                        if (particle.parentNode) {
+                            particle.remove();
+                        }
+                    }, 900);
+                }
+            }
+
+            triggerResultAnimation(button) {
+                const rect = button.getBoundingClientRect();
+                const centerX = rect.left + rect.width / 2;
+                const centerY = rect.top + rect.height / 2;
+                this.createParticles(centerX, centerY, 18);
+            }
+
+            handleButton(button) {
+                const action = button.dataset.action;
+                const value = button.dataset.value;
+
+                switch (action) {
+                    case 'number':
+                        this.appendNumber(value);
+                        this.triggerNumberAnimation();
+                        break;
+                    case 'decimal':
+                        this.appendDecimal();
+                        this.triggerNumberAnimation();
+                        break;
+                    case 'operator':
+                        this.chooseOperation(value);
+                        break;
+                    case 'equals':
+                        this.compute();
+                        this.triggerResultAnimation(button);
+                        break;
+                    case 'clear':
+                        this.clear();
+                        this.triggerClearAnimation();
+                        break;
+                    case 'negate':
+                        this.negate();
+                        break;
+                    case 'percent':
+                        this.percent();
+                        break;
+                }
+
+                this.updateDisplay();
+            }
+
+            handleKeyboard(e) {
+                let handled = false;
+
+                if (e.key >= '0' && e.key <= '9') {
+                    this.appendNumber(e.key);
+                    this.triggerNumberAnimation();
+                    handled = true;
+                } else if (e.key === '.') {
+                    this.appendDecimal();
+                    this.triggerNumberAnimation();
+                    handled = true;
+                } else if (e.key === '+') {
+                    this.chooseOperation('+');
+                    handled = true;
+                } else if (e.key === '-') {
+                    this.chooseOperation('−');
+                    handled = true;
+                } else if (e.key === '*' || e.key.toLowerCase() === 'x') {
+                    this.chooseOperation('×');
+                    handled = true;
+                } else if (e.key === '/') {
+                    this.chooseOperation('÷');
+                    handled = true;
+                } else if (e.key === '=' || e.key === 'Enter') {
+                    this.compute();
+                    const equalsBtn = document.querySelector('[data-action="equals"]');
+                    if (equalsBtn) {
+                        const rect = equalsBtn.getBoundingClientRect();
+                        this.createParticles(rect.left + rect.width/2, rect.top + rect.height/2, 14);
+                    }
+                    handled = true;
+                } else if (e.key === 'Escape' || e.key === 'c' || e.key === 'C') {
+                    this.clear();
+                    this.triggerClearAnimation();
+                    handled = true;
+                } else if (e.key === 'Backspace') {
+                    this.backspace();
+                    handled = true;
+                } else if (e.key === '%') {
+                    this.percent();
+                    handled = true;
+                }
+
+                if (handled) {
+                    e.preventDefault();
+                    this.updateOperatorHighlight();
+                    this.updateDisplay();
+
+                    const keyMap = {
+                        '+': '[data-value="+"]',
+                        '-': '[data-value="−"]',
+                        '*': '[data-value="×"]',
+                        '/': '[data-value="÷"]',
+                        '=': '[data-action="equals"]',
+                        'Enter': '[data-action="equals"]'
+                    };
+
+                    const selector = keyMap[e.key];
+                    if (selector) {
+                        const btn = document.querySelector(selector);
+                        if (btn) {
+                            btn.classList.add('pressed');
+                            setTimeout(() => btn.classList.remove('pressed'), 120);
+                        }
+                    }
+                }
+            }
+
+            triggerNumberAnimation() {
+                this.currentOperandElement.classList.remove('number-enter');
+                void this.currentOperandElement.offsetWidth;
+                this.currentOperandElement.classList.add('number-enter');
+                
+                setTimeout(() => {
+                    this.currentOperandElement.classList.remove('number-enter');
+                }, 200);
+            }
+
+            triggerClearAnimation() {
+                this.currentOperandElement.classList.add('clear-shake');
+                setTimeout(() => {
+                    this.currentOperandElement.classList.remove('clear-shake');
+                }, 350);
+            }
+
+            appendNumber(number) {
+                if (this.shouldResetScreen) {
+                    this.current = '';
+                    this.shouldResetScreen = false;
+                }
+
+                if (this.current === '0' && number !== '.') {
+                    this.current = number;
+                } else if (this.current.length < 9) {
+                    this.current += number;
+                }
+            }
+
+            appendDecimal() {
+                if (this.shouldResetScreen) {
+                    this.current = '0';
+                    this.shouldResetScreen = false;
+                }
+
+                if (!this.current.includes('.')) {
+                    this.current += '.';
+                }
+            }
+
+            chooseOperation(op) {
+                if (this.current === '') return;
+
+                if (this.previous !== '') {
+                    this.compute(false);
+                }
+
+                this.operation = op;
+                this.previous = this.current;
+                this.shouldResetScreen = true;
+
+                this.updateOperatorHighlight();
+            }
+
+            compute(updateDisplay = true) {
+                let computation;
+                const prev = parseFloat(this.previous);
+                const current = parseFloat(this.current);
+
+                if (isNaN(prev) || isNaN(current)) return;
+
+                switch (this.operation) {
+                    case '+':
+                        computation = prev + current;
+                        break;
+                    case '−':
+                        computation = prev - current;
+                        break;
+                    case '×':
+                        computation = prev * current;
+                        break;
+                    case '÷':
+                        computation = prev / current;
+                        break;
+                    default:
+                        return;
+                }
+
+                if (this.operation === '÷' && current === 0) {
+                    this.current = 'Error';
+                } else {
+                    this.current = this.formatResult(computation);
+                }
+
+                this.operation = undefined;
+                this.previous = '';
+
+                if (updateDisplay) {
+                    this.currentOperandElement.classList.add('result-reveal');
+                    setTimeout(() => {
+                        this.currentOperandElement.classList.remove('result-reveal');
+                    }, 450);
+                    this.updateOperatorHighlight();
+                }
+            }
+
+            formatResult(num) {
+                if (Math.abs(num) > 999999999) {
+                    return num.toExponential(2);
+                }
+                
+                const rounded = Math.round(num * 1000000000) / 1000000000;
+                return String(rounded);
+            }
+
+            clear() {
+                this.current = '0';
+                this.previous = '';
+                this.operation = undefined;
+                this.shouldResetScreen = false;
+                this.updateOperatorHighlight();
+            }
+
+            backspace() {
+                if (this.current.length > 1) {
+                    this.current = this.current.slice(0, -1);
+                } else {
+                    this.current = '0';
+                }
+            }
+
+            negate() {
+                if (this.current !== '0' && this.current !== 'Error') {
+                    if (this.current.startsWith('-')) {
+                        this.current = this.current.slice(1);
+                    } else {
+                        this.current = '-' + this.current;
+                    }
+                }
+            }
+
+            percent() {
+                if (this.current !== 'Error') {
+                    const value = parseFloat(this.current) / 100;
+                    this.current = this.formatResult(value);
+                }
+            }
+
+            updateDisplay() {
+                this.currentOperandElement.textContent = this.current;
+
+                if (this.operation != null) {
+                    this.previousOperandElement.textContent = `${this.previous} ${this.operation}`;
+                    this.previousOperandElement.classList.remove('fade-out');
+                } else {
+                    this.previousOperandElement.classList.add('fade-out');
+                    setTimeout(() => {
+                        if (!this.operation) {
+                            this.previousOperandElement.textContent = '';
+                        }
+                    }, 280);
+                }
+
+                this.adjustFontSize();
+            }
+
+            adjustFontSize() {
+                const element = this.currentOperandElement;
+                const length = this.current.length;
+
+                element.classList.remove('small', 'smaller', 'smallest');
+
+                if (length > 9) {
+                    element.classList.add('smallest');
+                } else if (length > 6) {
+                    element.classList.add('smaller');
+                } else if (length > 4) {
+                    element.classList.add('small');
+                }
+            }
+
+            updateOperatorHighlight() {
+                document.querySelectorAll('.operator').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+
+                if (this.operation) {
+                    const activeButton = document.querySelector(`[data-value="${this.operation}"]`);
+                    if (activeButton) {
+                        activeButton.classList.add('active');
+                    }
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            new Calculator();
+        });
+    </script>
+</body>
+</html>
